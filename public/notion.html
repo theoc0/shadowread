@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ShadowTalk 跟讀面板（Notion 嵌入用）</title>
+<style>
+  :root{
+    --bg:#f7f8fa;
+    --card:#ffffff;
+    --line:#e6e8ee;
+    --text:#1a1d24;
+    --muted:#6b7280;
+    --accent:#4f46e5;
+    --accent-soft:#eef0ff;
+    --green:#16a34a;
+    --orange:#ea580c;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:16px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;box-shadow:0 1px 2px rgba(16,24,40,.04);}
+
+  h1{font-size:18px;margin:0 0 2px;}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 12px;}
+
+  details{background:var(--accent-soft);border:1px solid #d8dcff;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#3730a3;}
+  details summary{cursor:pointer;font-weight:600;color:var(--accent);}
+  details p{margin:8px 0 0;}
+  details code{background:#fff;border:1px solid var(--line);border-radius:6px;padding:1px 5px;font-size:12px;}
+
+  label{display:block;font-size:13px;font-weight:600;color:#374151;margin:12px 0 6px;}
+  select,input[type=text],textarea{
+    width:100%;font:inherit;font-size:14px;color:var(--text);
+    border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#fff;outline:none;
+  }
+  textarea{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;min-height:110px;resize:vertical;line-height:1.5;}
+  select:focus,input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;}
+  .row>*{flex:1 1 200px;}
+  .row.shrink>*{flex:1 1 150px;}
+
+  button{
+    font:inherit;font-size:14px;font-weight:600;cursor:pointer;border-radius:10px;border:1px solid transparent;
+    padding:9px 14px;background:var(--accent);color:#fff;transition:filter .15s,opacity .15s;
+  }
+  button:hover{filter:brightness(1.06);}
+  button:disabled{opacity:.55;cursor:not-allowed;filter:none;}
+  button.ghost{background:#fff;color:var(--text);border-color:var(--line);}
+  button.ghost:hover{background:#f3f4f6;}
+  button.green{background:var(--green);}
+
+  .player-box{position:relative;width:100%;border-radius:12px;overflow:hidden;background:#000;aspect-ratio:16/9;}
+  .player-box iframe,.player-box video{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;}
+  .bili-note{display:none;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:10px;padding:9px 12px;font-size:13px;margin-top:10px;}
+
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .controls .spacer{flex:1;}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#374151;white-space:nowrap;}
+  .pill input{accent-color:var(--accent);}
+  .pill select{width:auto;padding:6px 8px;font-size:13px;}
+  .count{font-size:13px;color:var(--muted);}
+
+  .transcript{max-height:56vh;overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fff;}
+  .sentence{
+    display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-bottom:1px solid #f0f1f5;cursor:pointer;
+    transition:background .12s;
+  }
+  .sentence:last-child{border-bottom:none;}
+  .sentence:hover{background:#fafafa;}
+  .sentence.active{background:var(--accent-soft);border-left:3px solid var(--accent);}
+  .btn-replay{
+    flex:0 0 auto;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;
+    background:#fff;border:1.5px solid var(--line);color:var(--accent);font-size:15px;padding:0;margin-top:1px;
+  }
+  .btn-replay:hover{border-color:var(--accent);}
+  .sentence.active .btn-replay{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .idx{flex:0 0 auto;font-size:12px;color:var(--muted);min-width:26px;text-align:right;padding-top:6px;}
+  .body{flex:1;min-width:0;}
+  .txt{font-size:15px;}
+  .trans{font-size:13px;color:var(--muted);margin-top:2px;}
+  .time{flex:0 0 auto;font-size:11.5px;color:#9ca3af;padding-top:7px;font-variant-numeric:tabular-nums;}
+
+  .hint{font-size:12.5px;color:var(--muted);margin-top:6px;}
+  .error{color:#dc2626;font-size:13px;margin-top:6px;display:none;}
+  .spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:6px;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="card">
+    <h1>🎧 ShadowTalk 跟讀面板</h1>
+    <p class="sub">影片逐句跟隨 + 每句重讀按鈕（可嵌入 Notion）</p>
+
+    <details>
+      <summary>如何使用 / 如何嵌入 Notion</summary>
+      <p>1. 選影片來源、填影片網址 →「載入影片」。<br>
+      2. 填<b>後端位址</b>（跑 <code>server.js</code> 的那台機器），按「🔍 自動抓字幕」即可自動抓 YouTube / Bilibili 字幕＋時間軸。<br>
+      3. 可選「翻譯成母語」（走 DeepSeek，由後端代理）。<br>
+      4. 播放影片，字幕自動跟隨高亮；點每句 ▶ 跳句重讀。<br><br>
+      <b>嵌入 Notion：</b>把此頁放到<b>公開網址</b>，在 Notion 打 <code>/embed</code> 貼上。後端也要有公網網址（Render / Railway / 自有 VPS）。<br>
+      <b>URL 參數</b>（嵌入時可預填）：<code>?type=youtube&amp;video=ID&amp;api=https://你的後端&amp;lang=zh&amp;tl=繁體中文&amp;auto=1</code>（<code>auto=1</code> 會自動抓字幕）。</p>
+    </details>
+
+    <label>影片來源</label>
+    <div class="row">
+      <select id="srcType">
+        <option value="youtube">YouTube</option>
+        <option value="html5">上傳/直連影片檔 (MP4…)</option>
+        <option value="bilibili">Bilibili</option>
+      </select>
+      <input type="text" id="videoInput" placeholder="YouTube 影片 ID 或網址／影片檔網址／bilibili 網址">
+      <button id="loadVideo">載入影片</button>
+    </div>
+
+    <label>後端 API 位址（自動抓字幕 / 翻譯用）</label>
+    <input type="text" id="apiBase" placeholder="例如 http://localhost:8787；與本頁同源時可留空">
+
+    <div class="row shrink">
+      <div>
+        <label>字幕語言（來源）</label>
+        <select id="srcLang">
+          <option value="auto" selected>自動偵測</option>
+        </select>
+      </div>
+      <div>
+        <label>翻譯成（母語，可選）</label>
+        <select id="targetLang">
+          <option value="繁體中文" selected>繁體中文</option>
+          <option value="简体中文">简体中文</option>
+          <option value="English">English</option>
+          <option value="日本語">日本語</option>
+          <option value="한국어">한국어</option>
+          <option value="Español">Español</option>
+          <option value="Français">Français</option>
+          <option value="Deutsch">Deutsch</option>
+        </select>
+      </div>
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <button id="fetchSub" class="green">🔍 自動抓字幕</button>
+      <button id="translateBtn" class="ghost">翻譯成母語 (DeepSeek)</button>
+    </div>
+
+    <label>逐句字幕（含時間軸，可手動貼）</label>
+    <textarea id="transcriptInput" placeholder='JSON 格式：[{"start":1.2,"end":3.4,"text":"Hello there.","trans":"你好。"}]
+或直接貼 SRT / VTT 字幕內容。'></textarea>
+    <div class="row" style="margin-top:8px;">
+      <button id="applyTranscript">套用字幕</button>
+      <button id="loadExample" class="ghost">填入範例字幕（僅展示介面）</button>
+    </div>
+    <p class="hint" id="transcriptHint">尚未載入字幕。可點「🔍 自動抓字幕」從後端抓取，或手動貼字幕。</p>
+    <p class="error" id="errorBox"></p>
+  </div>
+
+  <div class="card">
+    <div class="player-box" id="playerBox">
+      <div id="ytPlayer"></div>
+      <video id="video" controls playsinline></video>
+      <iframe id="bili" allowfullscreen allow="autoplay; fullscreen"></iframe>
+    </div>
+    <div class="bili-note" id="biliNote">⚠️ Bilibili 嵌入不支援從外部「跳句/取時間」，無法自動跟隨高亮或點句重讀。但可正常自動抓字幕；句子請手動對照。</div>
+
+    <div class="controls" style="margin-top:12px;">
+      <button id="playPause" class="ghost">▶ 播放 / 暫停</button>
+      <label class="pill">語速
+        <select id="speed">
+          <option value="0.5">0.5×</option>
+          <option value="0.75">0.75×</option>
+          <option value="1" selected>1×</option>
+          <option value="1.25">1.25×</option>
+          <option value="1.5">1.5×</option>
+        </select>
+      </label>
+      <label class="pill"><input type="checkbox" id="loopOne"> 循環單句</label>
+      <span class="spacer"></span>
+      <span class="count" id="count">0 句</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="transcript" id="transcriptList"></div>
+  </div>
+
+</div>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+(function(){
+  "use strict";
+
+  var $ = function(id){ return document.getElementById(id); };
+  var sentences = [];
+  var activeIndex = -1;
+  var loopTarget = -1;
+  var sourceType = 'youtube';
+  var ytPlayer = null;
+  var pollTimer = null;
+  var videoEl = $('video');
+  var biliEl = $('bili');
+  var ytDiv = $('ytPlayer');
+
+  function showError(msg){
+    var box = $('errorBox');
+    if(msg){ box.textContent = msg; box.style.display = 'block'; }
+    else { box.textContent = ''; box.style.display = 'none'; }
+  }
+  function setHint(msg){ $('transcriptHint').textContent = msg; }
+  function btnLoading(btn, on){
+    if(on){ btn.dataset.orig = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>' + btn.dataset.orig.replace(/<[^>]*>/g,''); }
+    else { btn.disabled = false; if(btn.dataset.orig) btn.innerHTML = btn.dataset.orig; }
+  }
+
+  // ---------- 後端位址 ----------
+  function getApiBase(){
+    var v = $('apiBase').value.trim();
+    if(v) return v.replace(/\/+$/,'');
+    // 未填：同源（由 server.js 托管）則用相對路徑；file:// 或外部靜態托管則預設本機後端
+    if(location.protocol === 'http:' || location.protocol === 'https:') return '';
+    return 'http://localhost:8787';
+  }
+
+  // ---------- 時間工具 ----------
+  function toSeconds(v){
+    if(typeof v === 'number') return v;
+    if(typeof v !== 'string') return null;
+    v = v.trim();
+    var m = v.match(/^(?:(\d+):)?(\d{1,2}):(\d{1,2})(?:[.,](\d{1,3}))?$/);
+    if(m){
+      var h = m[1]?+m[1]:0, mi=+m[2], s=+m[3], ms=m[4]?+('0.'+m[4]):0;
+      return h*3600+mi*60+s+ms;
+    }
+    var n = parseFloat(v);
+    return isNaN(n)?null:n;
+  }
+  function fmt(t){
+    if(t==null||isNaN(t)) return '--:--';
+    t = Math.max(0, Math.round(t*10)/10);
+    var m = Math.floor(t/60), s = t - m*60;
+    return m + ':' + (s<10?'0':'') + s.toFixed(1);
+  }
+
+  // ---------- 字幕解析（手動貼） ----------
+  function normalizeItem(raw){
+    var start = raw.start!=null?raw.start:(raw.s!=null?raw.s:raw.t);
+    var end = raw.end!=null?raw.end:(raw.e!=null?raw.e:null);
+    var text = raw.text!=null?raw.text:(raw.txt!=null?raw.txt:'');
+    var trans = raw.trans!=null?raw.trans:(raw.translation!=null?raw.translation:(raw.zh!=null?raw.zh:''));
+    start = toSeconds(start); end = toSeconds(end);
+    if(start==null || isNaN(start)) return null;
+    if(end==null || isNaN(end)) end = start + 2.5;
+    return { start:start, end:end, text:String(text), trans:String(trans) };
+  }
+
+  function parseTranscript(src){
+    src = (src||'').trim();
+    if(!src) return null;
+    if(src[0]==='[' || src[0]==='{'){
+      try{
+        var data = JSON.parse(src);
+        var arr = Array.isArray(data) ? data : (data.sentences||data.cues||data.lines||data.items);
+        if(!Array.isArray(arr)) arr = Object.values(data).filter(Array.isArray)[0] || [];
+        var out = [];
+        arr.forEach(function(r){ var it = normalizeItem(r); if(it) out.push(it); });
+        return out;
+      }catch(e){ /* fall through to SRT/VTT */ }
+    }
+    var blocks = src.replace(/\r/g,'').split(/\n\s*\n/);
+    var out = [];
+    blocks.forEach(function(b){
+      var lines = b.split('\n').filter(function(l){return l.trim()!=='';});
+      var tl = lines.find(function(l){return l.indexOf('-->')>=0;});
+      if(!tl) return;
+      var m = tl.match(/(\d{1,2}):(\d{1,2}):(\d{1,2})[.,](\d{1,3})\s*-->\s*(\d{1,2}):(\d{1,2}):(\d{1,2})[.,](\d{1,3})/);
+      if(!m) return;
+      var start = (+m[1])*3600+(+m[2])*60+(+m[3])+(+m[4])/1000;
+      var end = (+m[5])*3600+(+m[6])*60+(+m[7])+(+m[8])/1000;
+      var txt = lines.filter(function(l){ return l.trim()!=='' && l.indexOf('-->')<0 && !/^\d+$/.test(l.trim()) && !/^WEBVTT/i.test(l); }).join(' ');
+      out.push({ start:start, end:end, text:txt, trans:'' });
+    });
+    return out.length ? out : null;
+  }
+
+  // ---------- 後端抓取 ----------
+  function fetchJSON(url){
+    return fetch(url).then(function(res){
+      return res.json().catch(function(){ return {}; }).then(function(j){
+        if(!res.ok || j.error) throw new Error(j.error || ('HTTP '+res.status));
+        return j;
+      });
+    });
+  }
+  function postJSON(url, obj){
+    return fetch(url, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(obj)
+    }).then(function(res){
+      return res.json().catch(function(){ return {}; }).then(function(j){
+        if(!res.ok || j.error) throw new Error(j.error || ('HTTP '+res.status));
+        return j;
+      });
+    });
+  }
+
+  function segmentsToSentences(segs){
+    return (segs||[]).map(function(s){
+      var start = typeof s.start==='number' ? s.start : parseFloat(s.start);
+      var end = typeof s.end==='number' ? s.end : (s.end!=null ? parseFloat(s.end) : start+2.5);
+      return { start:start, end:end, text:String(s.text||s.content||'').trim(), trans:'' };
+    }).filter(function(s){ return s.text && !isNaN(s.start); });
+  }
+
+  function populateSrcLang(tracks){
+    var sel = $('srcLang');
+    var cur = sel.value;
+    sel.innerHTML = '<option value="auto">自動偵測</option>';
+    (tracks||[]).forEach(function(t){
+      var o = document.createElement('option');
+      o.value = t.code; o.textContent = (t.name||t.code) + ' (' + t.code + ')' + (t.kind==='asr' ? ' [自動]' : '');
+      sel.appendChild(o);
+    });
+    // 嘗試還原選擇
+    var found = Array.prototype.some.call(sel.options, function(o){ return o.value===cur; });
+    if(found) sel.value = cur;
+  }
+
+  function autoPickLang(tracks){
+    var pref = (navigator.language||'').toLowerCase();
+    var hit = tracks.find(function(t){ return (t.code||'').toLowerCase() === pref; });
+    if(hit) return hit.code;
+    var manual = tracks.find(function(t){ return t.kind !== 'asr'; });
+    if(manual) return manual.code;
+    return tracks.length ? tracks[0].code : '';
+  }
+
+  function fetchYouTubeSubtitles(id){
+    var base = getApiBase();
+    var srcLang = $('srcLang').value;
+    var promise;
+    if(srcLang === 'auto'){
+      promise = fetchJSON(base + '/api/youtube/tracks?videoId=' + encodeURIComponent(id)).then(function(d){
+        var tracks = d.tracks || [];
+        populateSrcLang(tracks);
+        var lang = autoPickLang(tracks) || 'en';
+        return fetchJSON(base + '/api/youtube/transcript?videoId=' + encodeURIComponent(id) + '&lang=' + encodeURIComponent(lang));
+      });
+    } else {
+      promise = fetchJSON(base + '/api/youtube/transcript?videoId=' + encodeURIComponent(id) + '&lang=' + encodeURIComponent(srcLang));
+    }
+    return promise.then(function(d){
+      var segs = segmentsToSentences(d.segments);
+      if(!segs.length) throw new Error('字幕解析為空');
+      return { segs: segs, lang: d.lang || srcLang };
+    });
+  }
+
+  function fetchBilibiliSubtitles(url){
+    var base = getApiBase();
+    var srcLang = $('srcLang').value;
+    var q = base + '/api/bilibili/subtitle?url=' + encodeURIComponent(url);
+    if(srcLang !== 'auto') q += '&lang=' + encodeURIComponent(srcLang);
+    return fetchJSON(q).then(function(d){
+      var segs = segmentsToSentences(d.segments);
+      if(!segs.length) throw new Error('字幕解析為空');
+      return { segs: segs, lang: d.lang || srcLang };
+    });
+  }
+
+  function fetchSubtitles(){
+    var input = $('videoInput').value.trim();
+    sourceType = $('srcType').value;
+    showError('');
+    if(!input){ showError('請先填影片網址或 ID。'); return Promise.reject(new Error('no input')); }
+    if(sourceType === 'html5'){
+      showError('上傳/直連影片檔無法自動抓字幕，請手動貼字幕（SRT/VTT/JSON）。');
+      return Promise.reject(new Error('html5'));
+    }
+    var btn = $('fetchSub');
+    btnLoading(btn, true);
+    setHint('抓取中…');
+    var p = sourceType === 'youtube'
+      ? (function(){ var id = youtubeId(input); if(!id) throw new Error('無法解析 YouTube 影片 ID。'); return fetchYouTubeSubtitles(id); })()
+      : fetchBilibiliSubtitles(input);
+    return p.then(function(r){
+      sentences = r.segs;
+      renderTranscript();
+      setHint('已自動抓取 ' + sentences.length + ' 句（' + r.lang + '）。');
+      return r;
+    }).catch(function(e){
+      showError('自動抓字幕失敗：' + e.message + '（可改用「手動貼字幕」或檢查後端位址/網路）');
+      throw e;
+    }).finally(function(){ btnLoading(btn, false); });
+  }
+
+  // ---------- DeepSeek 翻譯 ----------
+  function parseJsonArray(s){
+    s = String(s||'').trim().replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();
+    try{ var v = JSON.parse(s); if(Array.isArray(v)) return v; if(v&&Array.isArray(v.translations)) return v.translations; if(v&&Array.isArray(v.t)) return v.t; }catch(e){}
+    var m = s.match(/\[[\s\S]*\]/);
+    if(m){ try{ var v2 = JSON.parse(m[0]); if(Array.isArray(v2)) return v2; }catch(e){} }
+    return null;
+  }
+
+  function translateAll(){
+    if(!sentences.length){ showError('請先載入字幕。'); return; }
+    var target = $('targetLang').value;
+    var base = getApiBase();
+    var btn = $('translateBtn');
+    btnLoading(btn, true);
+    showError('');
+    setHint('翻譯中…（分批處理）');
+
+    var texts = sentences.map(function(s){ return s.text; });
+    var chunkSize = 40;
+    var chunks = [];
+    for(var i=0;i<texts.length;i+=chunkSize) chunks.push(texts.slice(i, i+chunkSize));
+
+    var sys = '你是專業翻譯。把使用者提供的 JSON 字串陣列逐句翻譯成「' + target + '」。只回傳 JSON 陣列，每項對應輸入句子的翻譯，順序必須完全一致，不要任何其他文字、不要 markdown。';
+
+    var chain = Promise.resolve();
+    var offset = 0;
+    chunks.forEach(function(chunk){
+      chain = chain.then(function(){
+        return postJSON(base + '/api/deepseek', {
+          messages: [
+            { role:'system', content: sys },
+            { role:'user', content: JSON.stringify(chunk) }
+          ],
+          temperature: 0.3
+        }).then(function(r){
+          var content = r.choices && r.choices[0] && r.choices[0].message && r.choices[0].message.content;
+          if(!content) throw new Error('DeepSeek 未回傳內容');
+          var arr = parseJsonArray(content);
+          if(!arr || arr.length !== chunk.length) throw new Error('翻譯回傳數量不符（預期 ' + chunk.length + '，得到 ' + (arr?arr.length:0) + '）');
+          arr.forEach(function(t, k){ sentences[offset + k].trans = String(t).trim(); });
+          offset += chunk.length;
+          renderTranscript();
+        });
+      });
+    });
+
+    chain.then(function(){
+      setHint('翻譯完成（' + target + '）。');
+    }).catch(function(e){
+      showError('翻譯失敗：' + e.message);
+    }).finally(function(){ btnLoading(btn, false); });
+  }
+
+  // ---------- 字幕渲染 ----------
+  function renderTranscript(){
+    var list = $('transcriptList');
+    var keep = activeIndex;
+    list.innerHTML = '';
+    $('count').textContent = sentences.length + ' 句';
+    sentences.forEach(function(s, i){
+      var div = document.createElement('div');
+      div.className = 'sentence';
+      div.dataset.i = i;
+
+      var btn = document.createElement('button');
+      btn.className = 'btn-replay';
+      btn.title = '重讀這句';
+      btn.innerHTML = '▶';
+      btn.addEventListener('click', function(ev){ ev.stopPropagation(); jumpTo(i); });
+
+      var idx = document.createElement('span');
+      idx.className = 'idx'; idx.textContent = i+1;
+
+      var body = document.createElement('div');
+      body.className = 'body';
+      var t = document.createElement('div'); t.className='txt'; t.textContent = s.text;
+      body.appendChild(t);
+      if(s.trans){ var tr = document.createElement('div'); tr.className='trans'; tr.textContent = s.trans; body.appendChild(tr); }
+
+      var time = document.createElement('span');
+      time.className = 'time'; time.textContent = fmt(s.start);
+
+      div.appendChild(btn); div.appendChild(idx); div.appendChild(body); div.appendChild(time);
+      div.addEventListener('click', function(){ jumpTo(i); });
+      list.appendChild(div);
+    });
+    activeIndex = -1;
+    if(keep>=0) setActive(keep);
+  }
+
+  function setActive(i){
+    if(i === activeIndex) return;
+    var list = $('transcriptList');
+    var items = list.children;
+    if(activeIndex>=0 && items[activeIndex]) items[activeIndex].classList.remove('active');
+    activeIndex = i;
+    if(i>=0 && items[i]){
+      items[i].classList.add('active');
+      var listTop = list.scrollTop, listH = list.clientHeight;
+      var itTop = items[i].offsetTop - list.offsetTop;
+      var itH = items[i].offsetHeight;
+      if(itTop < listTop || itTop + itH > listTop + listH){
+        list.scrollTop = itTop - listH/2 + itH/2;
+      }
+    }
+  }
+
+  function updateActive(t){
+    var idx = -1;
+    for(var i=0;i<sentences.length;i++){
+      if(t >= sentences[i].start && t < sentences[i].end){ idx = i; break; }
+    }
+    setActive(idx);
+  }
+
+  // ---------- 播放控制 ----------
+  function jumpTo(i){
+    if(!sentences[i]) return;
+    var s = sentences[i];
+    loopTarget = $('loopOne').checked ? i : -1;
+    if(sourceType === 'youtube' && ytPlayer && ytPlayer.seekTo){
+      ytPlayer.seekTo(s.start, true);
+      ytPlayer.playVideo();
+    } else if(sourceType === 'html5'){
+      videoEl.currentTime = s.start;
+      videoEl.play();
+    } else {
+      setActive(i);
+    }
+  }
+
+  function setSpeed(v){
+    if(sourceType === 'youtube' && ytPlayer && ytPlayer.setPlaybackRate){ ytPlayer.setPlaybackRate(parseFloat(v)); }
+    else if(sourceType === 'html5'){ videoEl.playbackRate = parseFloat(v); }
+  }
+
+  function togglePlay(){
+    if(sourceType === 'youtube' && ytPlayer){
+      var st = ytPlayer.getPlayerState ? ytPlayer.getPlayerState() : -1;
+      if(st === 1) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
+    } else if(sourceType === 'html5'){
+      if(videoEl.paused) videoEl.play(); else videoEl.pause();
+    }
+  }
+
+  // ---------- YouTube ----------
+  function youtubeId(input){
+    if(/^[A-Za-z0-9_-]{11}$/.test(input)) return input;
+    var m = input.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : null;
+  }
+
+  function loadYouTube(id){
+    showPlayerDiv('youtube');
+    if(ytPlayer && ytPlayer.destroy){ try{ ytPlayer.destroy(); }catch(e){} }
+    ytPlayer = null;
+    if(!(window.YT && YT.Player)){ showError('YouTube API 尚未載入，請稍後再按一次「載入影片」。'); return; }
+    ytPlayer = new YT.Player('ytPlayer', {
+      videoId: id,
+      playerVars: { rel:0, playsinline:1 },
+      events: {
+        onReady: function(){ startPolling(); setSpeed($('speed').value); showError(''); }
+      }
+    });
+  }
+
+  function startPolling(){
+    if(pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(function(){
+      if(!ytPlayer || !ytPlayer.getCurrentTime) return;
+      var t = ytPlayer.getCurrentTime();
+      updateActive(t);
+      if(loopTarget>=0 && sentences[loopTarget]){
+        var s = sentences[loopTarget];
+        if(t >= s.end - 0.05){ ytPlayer.seekTo(s.start, true); }
+      }
+    }, 250);
+  }
+
+  // ---------- HTML5 ----------
+  function loadHtml5(url){
+    showPlayerDiv('html5');
+    videoEl.src = url;
+    videoEl.load();
+    setSpeed($('speed').value);
+    showError('');
+  }
+
+  // ---------- Bilibili ----------
+  function loadBilibili(input){
+    showPlayerDiv('bilibili');
+    $('biliNote').style.display = 'block';
+    var bv = input.match(/BV[0-9A-Za-z]+/);
+    var av = input.match(/av(\d+)/i) || input.match(/\/video\/(\d+)/);
+    var src;
+    if(bv) src = 'https://player.bilibili.com/player.html?bvid='+bv[0]+'&page=1&high_quality=1&danmaku=0';
+    else if(av) src = 'https://player.bilibili.com/player.html?aid='+av[1]+'&page=1&high_quality=1&danmaku=0';
+    else { showError('找不到 Bilibili 的 BV / av 號。'); return; }
+    biliEl.src = src;
+    showError('');
+  }
+
+  function showPlayerDiv(type){
+    ['ytPlayer','video','bili'].forEach(function(id){
+      $(id).style.display = 'none';
+    });
+    $('biliNote').style.display = 'none';
+    if(type==='youtube'){ ytDiv.style.display='block'; }
+    else if(type==='html5'){ videoEl.style.display='block'; }
+    else if(type==='bilibili'){ biliEl.style.display='block'; }
+  }
+
+  function doLoadVideo(){
+    var input = $('videoInput').value.trim();
+    sourceType = $('srcType').value;
+    showError('');
+    if(!input){ showError('請先填入影片網址或 ID。'); return false; }
+    if(sourceType === 'youtube'){
+      var id = youtubeId(input);
+      if(!id){ showError('無法解析 YouTube 影片 ID。'); return false; }
+      loadYouTube(id);
+    } else if(sourceType === 'html5'){
+      loadHtml5(input);
+    } else if(sourceType === 'bilibili'){
+      loadBilibili(input);
+    }
+    return true;
+  }
+
+  // ---------- 事件 ----------
+  $('loadVideo').addEventListener('click', doLoadVideo);
+
+  $('fetchSub').addEventListener('click', function(){
+    doLoadVideo();
+    fetchSubtitles().catch(function(){});
+  });
+
+  $('applyTranscript').addEventListener('click', function(){
+    var parsed = parseTranscript($('transcriptInput').value);
+    showError('');
+    if(!parsed || !parsed.length){ showError('無法解析字幕。請用 JSON（[{start,end,text,trans}]）或 SRT/VTT 格式。'); setHint('尚未載入字幕。'); return; }
+    sentences = parsed;
+    renderTranscript();
+    setHint('已載入 ' + sentences.length + ' 句。播放影片即會自動跟隨高亮。');
+  });
+
+  $('translateBtn').addEventListener('click', translateAll);
+
+  $('loadExample').addEventListener('click', function(){
+    var ex = [
+      {start:0.0,  end:2.6, text:"Hi, welcome to ShadowTalk.", trans:"嗨，歡迎使用 ShadowTalk。"},
+      {start:2.6,  end:5.1, text:"This is how sentence-by-sentence following works.", trans:"這就是逐句跟隨的運作方式。"},
+      {start:5.1,  end:8.3, text:"Click the play button to repeat a sentence.", trans:"點前面的 ▶ 按鈕重讀這一句。"},
+      {start:8.3,  end:11.0,text:"Then try shadowing it out loud.", trans:"然後跟著大聲複述。"},
+      {start:11.0, end:13.5,text:"Enable loop to drill one sentence.", trans:"開啟循環單句來反覆練習。"},
+      {start:13.5, end:16.0,text:"Keep going, you're doing great!", trans:"繼續加油，你做得很好！"}
+    ];
+    $('transcriptInput').value = JSON.stringify(ex);
+    sentences = ex;
+    renderTranscript();
+    setHint('已載入範例字幕（時間碼僅供展示介面用，請替換成真實字幕）。');
+  });
+
+  $('speed').addEventListener('change', function(){ setSpeed(this.value); });
+  $('playPause').addEventListener('click', togglePlay);
+  $('loopOne').addEventListener('change', function(){ if(!this.checked) loopTarget = -1; });
+
+  videoEl.addEventListener('timeupdate', function(){
+    if(sourceType !== 'html5') return;
+    updateActive(videoEl.currentTime);
+    if(loopTarget>=0 && sentences[loopTarget]){
+      var s = sentences[loopTarget];
+      if(videoEl.currentTime >= s.end - 0.05){ videoEl.currentTime = s.start; }
+    }
+  });
+
+  // ---------- URL 參數（方便 Notion 嵌入時帶入設定） ----------
+  function readParams(){
+    var p = new URLSearchParams(location.search);
+    if(p.get('type')) $('srcType').value = p.get('type');
+    if(p.get('video') || p.get('v')) $('videoInput').value = p.get('video') || p.get('v') || '';
+    if(p.get('api')) $('apiBase').value = p.get('api');
+    if(p.get('lang')) $('srcLang').value = p.get('lang');
+    if(p.get('tl')) $('targetLang').value = p.get('tl');
+    if(p.get('transcript')) $('transcriptInput').value = p.get('transcript');
+
+    if(p.get('transcript')){ $('applyTranscript').click(); }
+    if(p.get('video') || p.get('v')){
+      var loaded = doLoadVideo();
+      if((p.get('auto')==='1' || p.get('auto')==='true') && loaded){
+        setTimeout(function(){ fetchSubtitles().catch(function(){}); }, 800);
+      }
+    }
+  }
+
+  // 初始狀態
+  showPlayerDiv('youtube');
+  readParams();
+
+})();
+</script>
+</body>
+</html>

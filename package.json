@@ -1,0 +1,12 @@
+{
+  "name": "shadowtalk-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ShadowTalk 影子跟讀後端（零依賴）",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

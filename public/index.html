@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>影隨 ShadowTalk — 影子跟讀練習</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0d1117;
+  --panel:#141a25;
+  --panel-2:#1a2230;
+  --line:#232d3f;
+  --line-soft:#1c2534;
+  --paper:#e9e4d8;
+  --paper-dim:#b8b2a4;
+  --muted:#7e8799;
+  --signal:#f2a33c;
+  --signal-soft:rgba(242,163,60,.14);
+  --echo:#46d2c0;
+  --echo-soft:rgba(70,210,192,.14);
+  --good:#3ddc8e;
+  --bad:#ff6b6b;
+  --radius:14px;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:'Space Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang TC','Microsoft JhengHei','Noto Sans TC',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--sans);
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgba(70,210,192,.06), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(242,163,60,.05), transparent 55%),
+    var(--ink);
+  color:var(--paper);
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--signal);color:var(--ink)}
+button{font-family:var(--sans);cursor:pointer;border:none;background:none;color:inherit}
+a{color:var(--echo);text-decoration:none}
+
+/* ===== Header ===== */
+header{
+  position:sticky;top:0;z-index:50;
+  display:flex;align-items:center;gap:18px;
+  padding:12px 22px;
+  border-bottom:1px solid var(--line);
+  background:rgba(13,17,23,.82);
+  backdrop-filter:blur(14px);
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;letter-spacing:.3px}
+.brand .dot{width:22px;height:22px;border-radius:7px;position:relative;
+  background:linear-gradient(135deg,var(--signal),var(--echo));}
+.brand .dot::after{content:'';position:absolute;inset:0;border-radius:7px;background:var(--echo);opacity:.45;transform:translate(4px,4px);z-index:-1}
+.brand small{color:var(--muted);font-weight:500;font-size:11px;letter-spacing:1.5px;text-transform:uppercase}
+.steps{display:flex;gap:4px;margin-left:6px}
+.step-chip{display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:99px;font-size:13px;color:var(--muted);border:1px solid transparent;transition:.2s}
+.step-chip .n{font-family:var(--mono);font-size:11px;width:18px;height:18px;display:grid;place-items:center;border-radius:50%;background:var(--panel-2);color:var(--muted)}
+.step-chip.active{color:var(--paper);background:var(--panel-2);border-color:var(--line)}
+.step-chip.active .n{background:var(--signal);color:var(--ink);font-weight:700}
+.step-chip.done{color:var(--good)}
+.step-chip.done .n{background:var(--good);color:var(--ink)}
+.spacer{flex:1}
+.hlang{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:5px 12px;cursor:pointer;transition:.2s}
+.hlang:hover{border-color:var(--signal);color:var(--paper)}
+.hlang b{color:var(--paper);font-weight:600}
+.hlang .arw{color:var(--signal)}
+.icon-btn{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;border:1px solid var(--line);background:var(--panel);transition:.2s}
+.icon-btn:hover{border-color:var(--signal);color:var(--signal)}
+
+/* ===== Layout ===== */
+main{display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:0;min-height:calc(100vh - 64px)}
+@media(max-width:980px){main{grid-template-columns:1fr}}
+
+/* ===== Left: player ===== */
+.player-col{padding:22px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.video-shell{position:relative;aspect-ratio:16/9;background:#000;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line)}
+.video-shell iframe,.video-shell video{position:absolute;inset:0;width:100%;height:100%;border:0}
+.video-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--muted);text-align:center;padding:20px}
+.video-empty .glyph{font-size:42px;opacity:.5}
+.video-empty p{font-size:14px;max-width:340px;line-height:1.6}
+
+.transport{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tbtn{min-width:44px;height:44px;padding:0 12px;border-radius:11px;background:var(--panel);border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:13px;transition:.2s}
+.tbtn:hover{border-color:var(--signal)}
+.tbtn.primary{background:var(--signal);color:var(--ink);font-weight:600;border-color:var(--signal)}
+.tbtn.primary:hover{filter:brightness(1.06)}
+.tbtn.danger{background:var(--bad);color:#fff;border-color:var(--bad)}
+.tbtn.on{border-color:var(--echo);color:var(--echo)}
+.tbtn:disabled{opacity:.4;cursor:not-allowed}
+select, input[type=text], input[type=password], input[type=url], textarea{
+  font-family:var(--sans);font-size:14px;color:var(--paper);background:var(--panel-2);
+  border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none;transition:.2s;width:100%
+}
+select:focus,input:focus,textarea:focus{border-color:var(--echo)}
+select{cursor:pointer}
+.rate-sel{width:auto;padding:9px 10px;font-family:var(--mono);font-size:12px}
+
+.progress-wrap{display:flex;align-items:center;gap:10px}
+.progress{flex:1;height:5px;background:var(--panel-2);border-radius:99px;overflow:hidden;cursor:pointer;position:relative}
+.progress .fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--signal),var(--echo));border-radius:99px;width:0%}
+.timecode{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;min-width:86px;text-align:right}
+
+/* subtitle bar */
+.sub-bar{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;min-height:74px}
+.sub-bar .toggle{display:flex;gap:4px;margin-bottom:10px}
+.sub-toggle{font-size:11px;padding:4px 10px;border-radius:99px;color:var(--muted);border:1px solid var(--line)}
+.sub-toggle.on{color:var(--ink);background:var(--echo);border-color:var(--echo);font-weight:600}
+.sub-orig{font-size:18px;line-height:1.45;font-weight:500}
+.sub-trans{font-size:14px;line-height:1.5;color:var(--paper-dim);margin-top:5px}
+.sub-note{font-size:13px;color:var(--muted)}
+
+/* ===== Right: panels ===== */
+.panel-col{background:var(--panel);border-left:1px solid var(--line);padding:22px;display:flex;flex-direction:column;gap:18px;overflow-y:auto;max-height:calc(100vh - 64px)}
+@media(max-width:980px){.panel-col{border-left:none;border-top:1px solid var(--line);max-height:none}}
+.panel{display:none;flex-direction:column;gap:16px}
+.panel.active{display:flex}
+.panel-head h2{font-size:19px;font-weight:700;letter-spacing:.3px}
+.panel-head p{color:var(--muted);font-size:13px;margin-top:5px;line-height:1.5}
+
+.card{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.card h3{font-size:13px;font-weight:600;color:var(--paper-dim);letter-spacing:.5px;margin-bottom:12px;text-transform:uppercase}
+.field{margin-bottom:13px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+.field .hint{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5}
+
+.tabs{display:flex;gap:6px;background:var(--panel);padding:5px;border-radius:12px;border:1px solid var(--line)}
+.tab{flex:1;padding:9px;border-radius:9px;font-size:13px;color:var(--muted);text-align:center;transition:.2s}
+.tab.active{background:var(--panel-2);color:var(--paper);box-shadow:inset 0 0 0 1px var(--line)}
+.tab .emo{display:block;font-size:17px;margin-bottom:2px}
+
+.row{display:flex;gap:10px}
+.row>*{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;border-radius:11px;font-size:14px;font-weight:600;transition:.2s;width:100%}
+.btn.primary{background:var(--signal);color:var(--ink)}
+.btn.primary:hover{filter:brightness(1.06)}
+.btn.ghost{background:var(--panel);border:1px solid var(--line);color:var(--paper)}
+.btn.ghost:hover{border-color:var(--signal)}
+.btn.echo{background:var(--echo);color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{padding:9px 12px;font-size:13px;width:auto}
+
+.banner{border-radius:11px;padding:12px 14px;font-size:13px;line-height:1.55;border:1px solid}
+.banner.info{background:rgba(70,210,192,.08);border-color:rgba(70,210,192,.25);color:var(--echo)}
+.banner.warn{background:rgba(242,163,60,.08);border-color:rgba(242,163,60,.3);color:var(--signal)}
+.banner.err{background:rgba(255,107,107,.08);border-color:rgba(255,107,107,.3);color:var(--bad)}
+.banner b{font-weight:600}
+
+/* transcript list */
+.tlist{display:flex;flex-direction:column;gap:8px;overflow-y:auto}
+.titem{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:11px 13px;cursor:pointer;transition:.15s}
+.titem:hover{border-color:var(--line);background:var(--panel-2)}
+.titem.current{border-color:var(--signal);box-shadow:0 0 0 1px var(--signal)}
+.titem .meta{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.titem .idx{font-family:var(--mono);font-size:10px;color:var(--muted);background:var(--panel-2);padding:2px 6px;border-radius:5px}
+.titem .tcode{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.titem .orig{font-size:14px;line-height:1.5}
+.titem .trans{font-size:12.5px;color:var(--paper-dim);margin-top:4px;line-height:1.5}
+.titem .pending{color:var(--muted);font-style:italic;font-size:12px}
+
+/* shadow studio */
+.studio-sentence{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.studio-sentence .orig{font-size:21px;line-height:1.5;font-weight:500;word-break:break-word}
+.studio-sentence .trans{font-size:14px;color:var(--paper-dim);margin-top:8px;line-height:1.55;word-break:break-word}
+.studio-meta{display:flex;align-items:center;gap:10px;margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.wave{width:100%;height:74px;background:var(--panel);border:1px solid var(--line);border-radius:11px;display:block}
+.studio-actions{display:flex;gap:8px;flex-wrap:wrap}
+.studio-actions .btn{flex:1;min-width:120px}
+
+.feedback{display:none;flex-direction:column;gap:12px}
+.feedback.show{display:flex}
+.score-ring{display:flex;align-items:center;gap:16px}
+.score-ring .ring{width:64px;height:64px;border-radius:50%;position:relative;flex-shrink:0;display:grid;place-items:center}
+.score-ring .ring svg{position:absolute;inset:0;transform:rotate(-90deg)}
+.score-ring .ring .val{font-size:20px;font-weight:700;font-family:var(--mono)}
+.score-ring .summary{font-size:13px;line-height:1.55;color:var(--paper-dim)}
+.diff-line{font-size:16px;line-height:1.9;word-break:break-word}
+.diff-line .w{padding:1px 3px;border-radius:4px;margin:0 1px}
+.w.match{color:var(--good)}
+.w.miss{color:var(--bad);text-decoration:underline;text-decoration-color:rgba(255,107,107,.5)}
+.w.extra{color:var(--signal)}
+.issue-list{display:flex;flex-direction:column;gap:8px}
+.issue{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--bad);border-radius:9px;padding:9px 12px;font-size:13px;line-height:1.5}
+.issue .w{font-family:var(--mono);font-weight:600}
+.tip{background:var(--echo-soft);border:1px solid rgba(70,210,192,.25);border-radius:9px;padding:9px 12px;font-size:13px;line-height:1.55;color:var(--echo)}
+
+.record-hint{font-size:12px;color:var(--muted);line-height:1.6}
+
+/* modal */
+.modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);padding:20px}
+.modal.show{display:flex}
+.modal-box{width:100%;max-width:460px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:16px}
+.modal-box h3{font-size:16px}
+.modal-box .close-row{display:flex;justify-content:flex-end;gap:8px}
+
+/* toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--panel-2);border:1px solid var(--line);color:var(--paper);padding:12px 18px;border-radius:12px;font-size:13px;opacity:0;pointer-events:none;transition:.3s;z-index:200;max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{border-color:rgba(255,107,107,.5)}
+
+.loading{display:inline-block;width:14px;height:14px;border:2px solid rgba(0,0,0,.25);border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin-w{color:var(--ink)}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="dot"></span>
+    <span>影隨 <small>ShadowTalk</small></span>
+  </div>
+  <div class="steps" id="steps">
+    <button class="step-chip active" data-step="1"><span class="n">1</span>載入</button>
+    <button class="step-chip" data-step="2"><span class="n">2</span>字幕</button>
+    <button class="step-chip" data-step="3"><span class="n">3</span>跟讀</button>
+  </div>
+  <div class="spacer"></div>
+  <button class="hlang" id="hlang" title="語言設定"><b>學習</b>&nbsp;<span id="hlang-learn">英語</span>&nbsp;·&nbsp;<b>母語</b>&nbsp;<span id="hlang-native">中文</span>&nbsp;<span class="arw">⚙</span></button>
+  <button class="icon-btn" id="settings-btn" title="設定">⚙</button>
+</header>
+
+<main>
+  <!-- ===== 左：播放器 ===== -->
+  <section class="player-col">
+    <div class="video-shell" id="video-shell">
+      <div class="video-empty" id="video-empty">
+        <div class="glyph">🎬</div>
+        <p>貼上 YouTube / Bilibili 鏈接，或上載自己的影片，開始你的影子跟讀。</p>
+      </div>
+      <div id="yt-host" style="position:absolute;inset:0"></div>
+      <iframe id="bili-frame" style="display:none" allowfullscreen allow="autoplay; encrypted-media" referrerpolicy="no-referrer-when-downgrade"></iframe>
+      <video id="upload-video" style="display:none" playsinline></video>
+    </div>
+
+    <div class="transport">
+      <button class="tbtn primary" id="btn-play" disabled>▶ 播放</button>
+      <button class="tbtn" id="btn-prev" disabled>⏮</button>
+      <button class="tbtn" id="btn-next" disabled>⏭</button>
+      <select class="rate-sel" id="rate-sel" title="語速">
+        <option value="0.5">0.5×</option>
+        <option value="0.75">0.75×</option>
+        <option value="1" selected>1×</option>
+        <option value="1.25">1.25×</option>
+        <option value="1.5">1.5×</option>
+      </select>
+      <button class="tbtn" id="btn-loop" title="循環當前句">🔁 循環句</button>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="progress" id="progress"><div class="fill" id="progress-fill"></div></div>
+      <div class="timecode" id="timecode">00:00 / 00:00</div>
+    </div>
+
+    <div class="sub-bar" id="sub-bar">
+      <div class="toggle">
+        <button class="sub-toggle on" data-mode="both">雙語</button>
+        <button class="sub-toggle" data-mode="orig">僅學習語</button>
+        <button class="sub-toggle" data-mode="trans">僅母語</button>
+      </div>
+      <div class="sub-orig" id="sub-orig">—</div>
+      <div class="sub-trans" id="sub-trans" style="display:none"></div>
+    </div>
+  </section>
+
+  <!-- ===== 右：面板 ===== -->
+  <section class="panel-col">
+
+    <!-- 步驟一：載入 -->
+    <div class="panel active" id="panel-1">
+      <div class="panel-head">
+        <h2>① 設定語言與影片</h2>
+        <p>選擇你要練習的「學習語言」與你的「母語」，再載入影片來源。</p>
+      </div>
+
+      <div class="card">
+        <h3>語言</h3>
+        <div class="row">
+          <div class="field" style="margin-bottom:0">
+            <label>學習語言（影片語言）</label>
+            <select id="lang-learn"></select>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label>母語（翻譯用）</label>
+            <select id="lang-native"></select>
+          </div>
+        </div>
+        <div class="hint" style="margin-top:10px">字幕翻譯與跟讀評分會使用 DeepSeek，在「學習語言 ↔ 母語」之間互譯。</div>
+      </div>
+
+      <div class="card">
+        <h3>影片來源</h3>
+        <div class="tabs" id="src-tabs">
+          <button class="tab active" data-src="youtube"><span class="emo">▶️</span>YouTube</button>
+          <button class="tab" data-src="bilibili"><span class="emo">📺</span>Bilibili</button>
+          <button class="tab" data-src="upload"><span class="emo">📁</span>上載影片</button>
+        </div>
+        <div class="field" style="margin-top:14px" id="url-field">
+          <label>影片鏈接</label>
+          <input type="url" id="video-url" placeholder="https://www.youtube.com/watch?v=…">
+        </div>
+        <div class="field" style="margin-top:14px;display:none" id="file-field">
+          <label>選擇影片檔案</label>
+          <input type="file" id="video-file" accept="video/*">
+        </div>
+        <button class="btn primary" id="btn-load-video">載入影片</button>
+      </div>
+
+      <div class="card" id="subtitle-source-card" style="display:none">
+        <h3>字幕來源</h3>
+        <div class="field">
+          <label>字幕語言軌（如有多個）</label>
+          <select id="subtitle-lang"></select>
+        </div>
+        <div class="row">
+          <button class="btn ghost" id="btn-auto-sub">🔍 自動抓取字幕</button>
+        </div>
+        <div class="banner info" style="margin-top:8px">抓取不到時，可上傳字幕檔或直接貼上文本。</div>
+        <div class="field" style="margin-top:6px">
+          <label>上傳字幕檔（.srt / .vtt）</label>
+          <input type="file" id="subtitle-file" accept=".srt,.vtt">
+        </div>
+        <div class="field">
+          <label>或貼上文本（每句一行）</label>
+          <textarea id="paste-text" rows="4" placeholder="Hello. How are you?&#10;I'm great, thanks."></textarea>
+        </div>
+      </div>
+
+      <button class="btn echo" id="btn-next-2" disabled>下一步：生成母語翻譯 →</button>
+    </div>
+
+    <!-- 步驟二：字幕 -->
+    <div class="panel" id="panel-2">
+      <div class="panel-head">
+        <h2>② 字幕與翻譯</h2>
+        <p>檢查切好的句子，然後用 DeepSeek 生成母語翻譯。</p>
+      </div>
+      <button class="btn echo" id="btn-translate">✨ 生成母語翻譯</button>
+      <div class="banner info" id="translate-status" style="display:none"></div>
+      <div class="tlist" id="tlist-2"></div>
+      <div class="row">
+        <button class="btn ghost" id="btn-back-1">← 上一步</button>
+        <button class="btn primary" id="btn-next-3" disabled>開始跟讀 →</button>
+      </div>
+    </div>
+
+    <!-- 步驟三：跟讀 -->
+    <div class="panel" id="panel-3">
+      <div class="panel-head">
+        <h2>③ 影子跟讀</h2>
+        <p>聽原句 → 錄下你的跟讀 → AI 評分並指出要改善的地方。</p>
+      </div>
+
+      <div class="studio-sentence" id="studio-sentence">
+        <div class="orig" id="studio-orig">—</div>
+        <div class="trans" id="studio-trans"></div>
+        <div class="studio-meta">
+          <span id="studio-idx">#0</span>
+          <span id="studio-time">00:00</span>
+          <span class="spacer"></span>
+          <span id="studio-count"></span>
+        </div>
+      </div>
+
+      <canvas class="wave" id="wave" width="400" height="74"></canvas>
+
+      <div class="studio-actions">
+        <button class="btn ghost" id="btn-listen">🔊 聽原句</button>
+        <button class="btn echo" id="btn-record">🎙 開始錄音</button>
+        <button class="btn ghost" id="btn-prev-seg">←</button>
+        <button class="btn ghost" id="btn-next-seg">→</button>
+      </div>
+      <div class="record-hint" id="record-hint">點「聽原句」反覆聽熟，再點「開始錄音」跟著唸。錄音會同時轉成文字與原句比較。</div>
+
+      <div class="feedback" id="feedback">
+        <div class="score-ring">
+          <div class="ring" id="score-ring">
+            <svg width="64" height="64" viewBox="0 0 64 64">
+              <circle cx="32" cy="32" r="27" fill="none" stroke="#232d3f" stroke-width="5"/>
+              <circle id="score-arc" cx="32" cy="32" r="27" fill="none" stroke="#3ddc8e" stroke-width="5" stroke-linecap="round" stroke-dasharray="0 170"/>
+            </svg>
+            <span class="val" id="score-val">0</span>
+          </div>
+          <div class="summary" id="score-summary"></div>
+        </div>
+        <div class="card">
+          <h3>逐字比對（綠=命中 · 紅=漏掉 · 橙=多唸）</h3>
+          <div class="diff-line" id="diff-orig"></div>
+          <div class="diff-line" id="diff-user" style="margin-top:8px"></div>
+        </div>
+        <div class="card" id="issues-card" style="display:none">
+          <h3>需要改善的地方</h3>
+          <div class="issue-list" id="issue-list"></div>
+        </div>
+        <div class="card" id="tips-card" style="display:none">
+          <h3>教練建議</h3>
+          <div class="issue-list" id="tip-list"></div>
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="btn ghost" id="btn-back-2">← 上一步</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- 設定 -->
+<div class="modal" id="settings-modal">
+  <div class="modal-box">
+    <h3>設定</h3>
+    <div class="field">
+      <label>DeepSeek API Key（僅儲存在本機）</label>
+      <input type="password" id="api-key" autocomplete="off">
+      <div class="hint">已預先內置你的 key。此 key 只用於你的個人練習，不會上傳到任何第三方。</div>
+    </div>
+    <div class="field">
+      <label>模型</label>
+      <select id="model-sel">
+        <option value="deepseek-chat">deepseek-chat（快）</option>
+        <option value="deepseek-reasoner">deepseek-reasoner（推理，較慢）</option>
+      </select>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+      <input type="checkbox" id="direct-mode" style="width:auto"> 直連 DeepSeek（不使用本機後端代理）
+    </label>
+    <div class="close-row">
+      <button class="btn ghost sm" id="btn-settings-cancel">取消</button>
+      <button class="btn primary sm" id="btn-settings-save">儲存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+/* ================= 常數 ================= */
+const DEEPSEEK_DEFAULT_KEY = 'sk-f91785e819fb4d99a48f243ebee7496d';
+
+const LANGUAGES = [
+  { name:'英語', en:'English', code:'en-US', ds:'英語', yt:'en', bili:'en-US' },
+  { name:'中文（普通話）', en:'Mandarin', code:'zh-CN', ds:'簡體中文', yt:'zh-Hans', bili:'zh-CN' },
+  { name:'廣東話', en:'Cantonese', code:'zh-HK', ds:'繁體中文', yt:'zh-Hant', bili:'zh-TW' },
+  { name:'日語', en:'Japanese', code:'ja-JP', ds:'日語', yt:'ja', bili:'ja-JP' },
+  { name:'韓語', en:'Korean', code:'ko-KR', ds:'韓語', yt:'ko', bili:'ko-KR' },
+  { name:'法語', en:'French', code:'fr-FR', ds:'法語', yt:'fr', bili:'fr-FR' },
+  { name:'德語', en:'German', code:'de-DE', ds:'德語', yt:'de', bili:'de-DE' },
+  { name:'西班牙語', en:'Spanish', code:'es-ES', ds:'西班牙語', yt:'es', bili:'es-ES' },
+  { name:'意大利語', en:'Italian', code:'it-IT', ds:'意大利語', yt:'it', bili:'it-IT' },
+  { name:'葡萄牙語', en:'Portuguese', code:'pt-PT', ds:'葡萄牙語', yt:'pt', bili:'pt-PT' },
+  { name:'俄語', en:'Russian', code:'ru-RU', ds:'俄語', yt:'ru', bili:'ru-RU' },
+  { name:'阿拉伯語', en:'Arabic', code:'ar-SA', ds:'阿拉伯語', yt:'ar', bili:'ar-SA' },
+  { name:'印地語', en:'Hindi', code:'hi-IN', ds:'印地語', yt:'hi', bili:'hi-IN' },
+  { name:'越南語', en:'Vietnamese', code:'vi-VN', ds:'越南語', yt:'vi', bili:'vi-VN' },
+  { name:'泰語', en:'Thai', code:'th-TH', ds:'泰語', yt:'th', bili:'th-TH' },
+  { name:'印尼語', en:'Indonesian', code:'id-ID', ds:'印尼語', yt:'id', bili:'id-ID' },
+  { name:'土耳其語', en:'Turkish', code:'tr-TR', ds:'土耳其語', yt:'tr', bili:'tr-TR' },
+  { name:'荷蘭語', en:'Dutch', code:'nl-NL', ds:'荷蘭語', yt:'nl', bili:'nl-NL' },
+  { name:'波蘭語', en:'Polish', code:'pl-PL', ds:'波蘭語', yt:'pl', bili:'pl-PL' }
+];
+
+/* ================= 狀態 ================= */
+const store = {
+  get(k, d){ try { const v = localStorage.getItem('shadowtalk.'+k); return v==null?d:JSON.parse(v); } catch(_){ return d; } },
+  set(k, v){ try { localStorage.setItem('shadowtalk.'+k, JSON.stringify(v)); } catch(_){} }
+};
+
+const state = {
+  step: 1,
+  learningIdx: store.get('learningIdx', 0),
+  nativeIdx: store.get('nativeIdx', 1),
+  apiKey: store.get('apiKey', DEEPSEEK_DEFAULT_KEY),
+  model: store.get('model', 'deepseek-chat'),
+  directMode: store.get('directMode', false),
+  src: 'youtube',
+  video: { type:null, youtubeId:null, bilibiliId:null, file:null, objectUrl:null },
+  segments: [],          // {index,start,end,text,translation}
+  subtitleTracks: [],    // 可選字幕軌
+  chosenSubLang: null,
+  currentSeg: -1,
+  loopMode: false,
+  isRecording: false,
+  subMode: 'both'
+};
+
+/* ================= DOM ================= */
+const $ = (id) => document.getElementById(id);
+const els = {
+  steps: $('steps'), panel1: $('panel-1'), panel2: $('panel-2'), panel3: $('panel-3'),
+  hlangLearn: $('hlang-learn'), hlangNative: $('hlang-native'),
+  langLearn: $('lang-learn'), langNative: $('lang-native'),
+  srcTabs: $('src-tabs'), urlField: $('url-field'), fileField: $('file-field'),
+  videoUrl: $('video-url'), videoFile: $('video-file'),
+  btnLoadVideo: $('btn-load-video'),
+  subtitleSourceCard: $('subtitle-source-card'), subtitleLang: $('subtitle-lang'),
+  btnAutoSub: $('btn-auto-sub'), subtitleFile: $('subtitle-file'), pasteText: $('paste-text'),
+  btnNext2: $('btn-next-2'),
+  btnTranslate: $('btn-translate'), translateStatus: $('translate-status'), tlist2: $('tlist-2'),
+  btnBack1: $('btn-back-1'), btnNext3: $('btn-next-3'), btnBack2: $('btn-back-2'),
+  videoShell: $('video-shell'), videoEmpty: $('video-empty'),
+  ytHost: $('yt-host'), biliFrame: $('bili-frame'), uploadVideo: $('upload-video'),
+  btnPlay: $('btn-play'), btnPrev: $('btn-prev'), btnNext: $('btn-next'),
+  rateSel: $('rate-sel'), btnLoop: $('btn-loop'),
+  progress: $('progress'), progressFill: $('progress-fill'), timecode: $('timecode'),
+  subOrig: $('sub-orig'), subTrans: $('sub-trans'), subBar: $('sub-bar'),
+  studioSentence: $('studio-sentence'), studioOrig: $('studio-orig'), studioTrans: $('studio-trans'),
+  studioIdx: $('studio-idx'), studioTime: $('studio-time'), studioCount: $('studio-count'),
+  wave: $('wave'),
+  btnListen: $('btn-listen'), btnRecord: $('btn-record'), btnPrevSeg: $('btn-prev-seg'), btnNextSeg: $('btn-next-seg'),
+  recordHint: $('record-hint'), feedback: $('feedback'),
+  scoreRing: $('score-ring'), scoreArc: $('score-arc'), scoreVal: $('score-val'), scoreSummary: $('score-summary'),
+  diffOrig: $('diff-orig'), diffUser: $('diff-user'), issuesCard: $('issues-card'), issueList: $('issue-list'),
+  tipsCard: $('tips-card'), tipList: $('tip-list'),
+  settingsModal: $('settings-modal'), apiKey: $('api-key'), modelSel: $('model-sel'), directMode: $('direct-mode'),
+  btnSettingsCancel: $('btn-settings-cancel'), btnSettingsSave: $('btn-settings-save'),
+  toast: $('toast')
+};
+
+/* ================= 工具 ================= */
+function toast(msg, isErr){ els.toast.textContent = msg; els.toast.className = 'toast show' + (isErr?' err':''); clearTimeout(toast._t); toast._t = setTimeout(()=>els.toast.className='toast', 3200); }
+function fmtTime(s){ if(s==null||isNaN(s)) return '--:--'; s=Math.max(0,Math.floor(s)); const m=Math.floor(s/60), ss=s%60; return (m<10?'0':'')+m+':'+(ss<10?'0':'')+ss; }
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function debounce(fn,ms){ let t; return function(...a){ clearTimeout(t); t=setTimeout(()=>fn.apply(this,a),ms); }; }
+
+function extractJson(text){
+  let t = String(text||'').trim();
+  t = t.replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();
+  const start = t.search(/[[{]/);
+  if(start === -1) throw new Error('AI 回覆不含 JSON');
+  const endB = t.lastIndexOf('}'), endA = t.lastIndexOf(']');
+  const finish = Math.max(endB, endA);
+  const slice = t.slice(start, finish+1);
+  return JSON.parse(slice);
+}
+
+/* ================= DeepSeek ================= */
+async function deepseek(messages, opts={}){
+  const payload = {
+    model: state.model,
+    messages,
+    temperature: opts.temperature ?? 0.3,
+    max_tokens: opts.maxTokens ?? 2048
+  };
+  const direct = state.directMode || location.protocol === 'file:';
+  if(direct){
+    const r = await fetch('https://api.deepseek.com/chat/completions', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+state.apiKey},
+      body: JSON.stringify(payload)
+    });
+    if(!r.ok){ const e = await r.json().catch(()=>({})); throw new Error(e.error?.message || ('DeepSeek 錯誤 '+r.status)); }
+    const d = await r.json();
+    return d.choices[0].message.content;
+  }
+  // 走後端代理（隱藏 key）
+  let r;
+  try {
+    r = await fetch('/api/deepseek', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    if(r.ok){ const d = await r.json(); return d.choices[0].message.content; }
+    const e = await r.json().catch(()=>({}));
+    throw new Error(e.error || ('後端錯誤 '+r.status));
+  } catch(err){
+    // 後端不可用 → 直連
+    const r2 = await fetch('https://api.deepseek.com/chat/completions', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+state.apiKey},
+      body: JSON.stringify(payload)
+    });
+    if(!r2.ok){ const e2 = await r2.json().catch(()=>({})); throw new Error(e2.error?.message || ('DeepSeek 錯誤 '+r2.status)); }
+    const d2 = await r2.json();
+    return d2.choices[0].message.content;
+  }
+}
+
+/* ================= 語言 ================= */
+function getLearning(){ return LANGUAGES[state.learningIdx]; }
+function getNative(){ return LANGUAGES[state.nativeIdx]; }
+
+function renderLanguages(){
+  els.langLearn.innerHTML = LANGUAGES.map((l,i)=>`<option value="${i}" ${i===state.learningIdx?'selected':''}>${l.name} · ${l.en}</option>`).join('');
+  els.langNative.innerHTML = LANGUAGES.map((l,i)=>`<option value="${i}" ${i===state.nativeIdx?'selected':''}>${l.name} · ${l.en}</option>`).join('');
+  els.hlangLearn.textContent = getLearning().name;
+  els.hlangNative.textContent = getNative().name;
+}
+
+/* ================= 步驟導航 ================= */
+function setStep(n){
+  state.step = n;
+  [els.panel1,els.panel2,els.panel3].forEach((p,i)=>p.classList.toggle('active', i+1===n));
+  document.querySelectorAll('.step-chip').forEach(ch=>{
+    const s = +ch.dataset.step;
+    ch.classList.toggle('active', s===n);
+    ch.classList.toggle('done', s<n);
+  });
+  if(n===3) renderStudio();
+  if(n===2) renderTranscriptList();
+}
+
+/* ================= 影片層 ================= */
+let ytPlayer = null, ytReady = false, ytBuiltId = null, pollTimer = null;
+let audioCtx = null, analyser = null, mediaRecorder = null, mediaStream = null;
+let recognition = null, finalTranscript = '', interimTranscript = '';
+let recordedBlob = null, recordedUrl = null;
+let rafId = null;
+
+function hideAllVideo(){
+  els.videoEmpty.style.display = 'flex';
+  els.ytHost.innerHTML = '';
+  $('bili-frame').style.display = 'none';
+  els.uploadVideo.style.display = 'none';
+}
+
+function loadYouTubeApi(){
+  if(window.YT && YT.Player) return;
+  if(document.getElementById('yt-api')) return;
+  const s = document.createElement('script');
+  s.id = 'yt-api'; s.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(s);
+}
+window.onYouTubeIframeAPIReady = function(){
+  ytReady = true;
+  if(state.video.type === 'youtube' && state.video.youtubeId) buildYoutubePlayer(state.video.youtubeId);
+};
+
+function buildYoutubePlayer(id){
+  if(ytBuiltId === id && ytPlayer) return;
+  ytBuiltId = id;
+  els.videoEmpty.style.display = 'none';
+  els.ytHost.innerHTML = '<div id="yt-player"></div>';
+  ytPlayer = new YT.Player('yt-player', {
+    videoId: id,
+    playerVars: { controls:1, rel:0, modestbranding:1, playsinline:1 },
+    events: { onReady: onYtReady, onStateChange: onYtState }
+  });
+}
+function onYtReady(){
+  if(!ytPlayer) return;
+  els.btnPlay.disabled = false; els.btnPrev.disabled = false; els.btnNext.disabled = false;
+  ytPlayer.setPlaybackRate(parseFloat(els.rateSel.value));
+  startPoll();
+}
+function onYtState(e){
+  if(e.data === 1) els.btnPlay.textContent = '⏸ 暫停';
+  else els.btnPlay.textContent = '▶ 播放';
+}
+
+function setVideo(type, value){
+  stopAllPlayback();
+  hideAllVideo();
+  state.video.type = type;
+  if(type === 'youtube'){
+    state.video.youtubeId = value;
+    loadYouTubeApi();
+    if(ytReady) buildYoutubePlayer(value); else setTimeout(()=>{ if(ytReady) buildYoutubePlayer(value); }, 800);
+    els.btnLoadVideo.disabled = false;
+  } else if(type === 'bilibili'){
+    state.video.bilibiliId = value;
+    els.videoEmpty.style.display = 'none';
+    els.biliFrame.style.display = 'block';
+    els.biliFrame.src = 'https://player.bilibili.com/player.html?bvid='+value+'&page=1&high_quality=1&danmaku=0';
+    els.btnPlay.disabled = true; els.btnPrev.disabled = false; els.btnNext.disabled = false;
+  } else if(type === 'upload'){
+    els.videoEmpty.style.display = 'none';
+    els.uploadVideo.style.display = 'block';
+    els.uploadVideo.src = value;
+    els.btnPlay.disabled = false; els.btnPrev.disabled = false; els.btnNext.disabled = false;
+    els.uploadVideo.addEventListener('timeupdate', onUploadTime);
+    els.uploadVideo.onplay = ()=>{ els.btnPlay.textContent = '⏸ 暫停'; };
+    els.uploadVideo.onpause = ()=>{ els.btnPlay.textContent = '▶ 播放'; };
+    els.uploadVideo.onended = ()=>{ els.btnPlay.textContent = '▶ 播放'; };
+  }
+}
+
+function stopAllPlayback(){
+  stopPoll();
+  try { ytPlayer && ytPlayer.pauseVideo && ytPlayer.pauseVideo(); } catch(_){}
+  try { els.uploadVideo.pause(); } catch(_){}
+}
+
+function startPoll(){
+  stopPoll();
+  pollTimer = setInterval(()=>{
+    if(ytPlayer && ytPlayer.getCurrentTime){
+      const t = ytPlayer.getCurrentTime();
+      updateProgress(t, ytPlayer.getDuration ? ytPlayer.getDuration() : 0);
+      handleSentenceLoop(t);
+    }
+  }, 200);
+}
+function stopPoll(){ if(pollTimer){ clearInterval(pollTimer); pollTimer = null; } }
+
+function onUploadTime(){
+  const v = els.uploadVideo;
+  if(!v.duration) return;
+  updateProgress(v.currentTime, v.duration);
+  handleSentenceLoop(v.currentTime);
+}
+
+function getCurrentTime(){
+  if(state.video.type === 'youtube' && ytPlayer && ytPlayer.getCurrentTime) return ytPlayer.getCurrentTime();
+  if(state.video.type === 'upload') return els.uploadVideo.currentTime;
+  return -1;
+}
+function getDuration(){
+  if(state.video.type === 'youtube' && ytPlayer && ytPlayer.getDuration) return ytPlayer.getDuration();
+  if(state.video.type === 'upload') return els.uploadVideo.duration || 0;
+  return 0;
+}
+
+function seekTo(t){
+  if(t==null || t<0) return;
+  if(state.video.type === 'youtube' && ytPlayer){ ytPlayer.seekTo(t, true); ytPlayer.playVideo(); }
+  else if(state.video.type === 'upload'){ els.uploadVideo.currentTime = t; els.uploadVideo.play(); }
+}
+function doPlay(){
+  if(state.video.type === 'youtube' && ytPlayer){ ytPlayer.playVideo(); }
+  else if(state.video.type === 'upload'){ els.uploadVideo.play(); }
+}
+function doPause(){
+  if(state.video.type === 'youtube' && ytPlayer){ ytPlayer.pauseVideo(); }
+  else if(state.video.type === 'upload'){ els.uploadVideo.pause(); }
+}
+function setRate(r){
+  if(state.video.type === 'youtube' && ytPlayer) ytPlayer.setPlaybackRate(r);
+  else if(state.video.type === 'upload') els.uploadVideo.playbackRate = r;
+}
+
+/* ================= 進度 / 循環 / 當前句 ================= */
+function updateProgress(cur, dur){
+  if(dur>0){ els.progressFill.style.width = (cur/dur*100)+'%'; els.timecode.textContent = fmtTime(cur)+' / '+fmtTime(dur); }
+  else els.timecode.textContent = fmtTime(cur);
+  updateSubtitleBar(cur);
+  updateCurrentItem(cur);
+}
+function handleSentenceLoop(cur){
+  if(!state.loopMode || state.currentSeg < 0) return;
+  const seg = state.segments[state.currentSeg];
+  if(seg && seg.start!=null && seg.end!=null){
+    if(cur >= seg.end){
+      seekTo(seg.start);
+    }
+  }
+}
+function updateCurrentItem(cur){
+  let idx = -1;
+  for(let i=0;i<state.segments.length;i++){
+    const s = state.segments[i];
+    if(s.start!=null && s.end!=null && cur>=s.start && cur<s.end){ idx=i; break; }
+  }
+  if(idx !== state.currentSeg && !state.isRecording){
+    state.currentSeg = idx;
+    if(state.step===2) highlightList();
+  }
+}
+function updateSubtitleBar(cur){
+  const seg = findSegmentAt(cur);
+  if(seg){
+    els.subOrig.textContent = seg.text;
+    if(seg.translation){
+      els.subTrans.textContent = seg.translation;
+      els.subTrans.style.display = state.subMode!=='orig' ? 'block' : 'none';
+    } else els.subTrans.style.display = 'none';
+    if(state.subMode==='trans' && seg.translation){ els.subOrig.style.display='none'; } else els.subOrig.style.display='block';
+    if(state.subMode==='trans' && !seg.translation){ els.subOrig.style.display='block'; }
+  } else {
+    els.subOrig.textContent = '—'; els.subTrans.style.display='none';
+  }
+}
+function findSegmentAt(cur){
+  for(const s of state.segments){ if(s.start!=null && s.end!=null && cur>=s.start && cur<s.end) return s; }
+  return null;
+}
+
+/* ================= 句子切分 ================= */
+function mergeToSentences(segs){
+  const out = []; let cur = null;
+  const endPunct = /[.!?。！？…]["'」』)）】]?$/;
+  for(const s of segs){
+    if(!cur) cur = { start:s.start, end:s.end, text:s.text };
+    else {
+      const gap = s.start - cur.end;
+      if(gap > 2.0 || endPunct.test(cur.text.trim()) || cur.text.length > 100){
+        out.push(cur); cur = { start:s.start, end:s.end, text:s.text };
+      } else {
+        cur.text += ' ' + s.text; cur.end = s.end;
+      }
+    }
+    if(cur.text.length > 160){ out.push(cur); cur = null; }
+  }
+  if(cur) out.push(cur);
+  return out;
+}
+function setSegments(segs, hasTime){
+  state.segments = segs.map((s,i)=>({ index:i, start:s.start??null, end:s.end??null, text:s.text, translation:null, userText:null }));
+  state.currentSeg = -1;
+  state.chosenSubLang = null;
+}
+
+/* ================= 字幕解析（SRT/VTT） ================= */
+function parseSrtVtt(text){
+  const lines = text.replace(/\r/g,'').split('\n');
+  const segs = []; let i = 0;
+  const timeRe = /(\d{1,2}):(\d{1,2}):(\d{1,2})[,.](\d{1,3})/;
+  while(i < lines.length){
+    let line = lines[i].trim();
+    // skip index numbers, WEBVTT headers, NOTE blocks
+    if(line === '' || line === 'WEBVTT'){ i++; continue; }
+    if(line.startsWith('NOTE')){ while(i<lines.length && lines[i].trim()!=='') i++; continue; }
+    if(/^\d+$/.test(line)){ i++; continue; }
+    const m = line.match(/(\d{1,2}:\d{1,2}:\d{1,2}[,.]\d{1,3})\s*-->\s*(\d{1,2}:\d{1,2}:\d{1,2}[,.]\d{1,3})/);
+    if(m){
+      const toSec = (s)=>{ const p = s.match(timeRe); return (+p[1])*3600 + (+p[2])*60 + (+p[3]) + (+p[4])/1000; };
+      const start = toSec(m[1]), end = toSec(m[2]);
+      i++;
+      let textLines = [];
+      while(i<lines.length && lines[i].trim()!==''){ textLines.push(lines[i].trim()); i++; }
+      let t = textLines.join(' ').replace(/<[^>]+>/g,'').trim();
+      if(t) segs.push({ start, end, text: t });
+    } else i++;
+  }
+  return segs;
+}
+
+function splitTextToSegments(text){
+  const sentences = text.replace(/\r/g,'').split(/\n+|(?<=[.!?。！？…])\s+/).map(s=>s.trim()).filter(Boolean);
+  return sentences.map(s=>({ text: s }));
+}
+
+/* ================= 載入影片 / 字幕 ================= */
+function parseYoutubeId(input){
+  const s = String(input||'').trim();
+  if(/^[A-Za-z0-9_-]{11}$/.test(s)) return s;
+  const m = s.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+function parseBilibiliId(input){
+  const m = String(input||'').match(/BV[0-9A-Za-z]{10}/);
+  return m ? m[1] : null;
+}
+
+async function onLoadVideo(){
+  const src = state.src;
+  if(src === 'upload'){
+    const f = els.videoFile.files[0];
+    if(!f){ toast('請選擇影片檔案', true); return; }
+    if(state.video.objectUrl) URL.revokeObjectURL(state.video.objectUrl);
+    state.video.objectUrl = URL.createObjectURL(f);
+    setVideo('upload', state.video.objectUrl);
+    els.subtitleSourceCard.style.display = 'block';
+    toast('影片已載入，請提供字幕來源');
+  } else {
+    const url = els.videoUrl.value.trim();
+    if(!url){ toast('請貼上影片鏈接', true); return; }
+    if(src === 'youtube'){
+      const id = parseYoutubeId(url);
+      if(!id){ toast('無法解析 YouTube 鏈接', true); return; }
+      setVideo('youtube', id);
+      els.subtitleSourceCard.style.display = 'block';
+      toast('影片已載入，點「自動抓取字幕」');
+    } else {
+      let id = parseBilibiliId(url);
+      if(!id){
+        // 短鏈（b23.tv 等）→ 後端解析
+        toast('正在解析 Bilibili 短鏈…');
+        try {
+          const r = await fetch('/api/bilibili/resolve?url='+encodeURIComponent(url));
+          const d = await r.json();
+          if(!r.ok || !d.bvid) throw new Error(d.error || '解析失敗');
+          id = d.bvid;
+        } catch(e){ toast('無法解析 Bilibili 鏈接：'+e.message, true); return; }
+      }
+      setVideo('bilibili', id);
+      els.subtitleSourceCard.style.display = 'block';
+      toast('影片已載入，點「自動抓取字幕」');
+    }
+  }
+}
+
+async function onAutoSubtitle(){
+  try {
+    toast('正在抓取字幕…');
+    let segs = null;
+    if(state.video.type === 'youtube'){
+      const lang = getLearning().yt;
+      const r = await fetch('/api/youtube/transcript?videoId='+encodeURIComponent(state.video.youtubeId)+'&lang='+lang);
+      const d = await r.json();
+      if(!r.ok || d.error) throw new Error(d.error || '抓取失敗');
+      if(d.tracks && d.tracks.length){
+        state.subtitleTracks = d.tracks;
+        renderSubtitleTracks(d.lang);
+      }
+      segs = d.segments;
+    } else if(state.video.type === 'bilibili'){
+      const r = await fetch('/api/bilibili/subtitle?url='+encodeURIComponent(els.videoUrl.value)+'&lang='+encodeURIComponent(getLearning().bili));
+      const d = await r.json();
+      if(!r.ok || d.error) throw new Error(d.error || '抓取失敗');
+      if(d.subtitles && d.subtitles.length){
+        state.subtitleTracks = d.subtitles.map(s=>({code:s.lan, name:s.lan_doc}));
+        renderSubtitleTracks(d.lang);
+      }
+      segs = d.segments;
+    } else {
+      toast('上載影片請使用「上傳字幕檔」或「貼上文本」', true);
+      return;
+    }
+    setSegments(mergeToSentences(segs), true);
+    els.btnNext2.disabled = false;
+    toast('已載入 '+state.segments.length+' 句字幕');
+  } catch(e){
+    if(location.protocol === 'file:'){
+      toast('抓取 YouTube/Bilibili 字幕需要啟動本機後端（node server.js）', true);
+    } else {
+      toast(e.message || '字幕抓取失敗', true);
+    }
+  }
+}
+
+function renderSubtitleTracks(chosen){
+  if(!state.subtitleTracks.length) return;
+  els.subtitleLang.innerHTML = state.subtitleTracks.map(t=>`<option value="${escapeHtml(t.code)}" ${t.code===chosen?'selected':''}>${escapeHtml(t.name||t.code)}</option>`).join('');
+}
+
+async function onSubtitleLangChange(){
+  const code = els.subtitleLang.value;
+  try {
+    toast('切換字幕語言…');
+    let segs = null;
+    if(state.video.type === 'youtube'){
+      const r = await fetch('/api/youtube/transcript?videoId='+encodeURIComponent(state.video.youtubeId)+'&lang='+encodeURIComponent(code));
+      const d = await r.json();
+      if(!r.ok || d.error) throw new Error(d.error);
+      segs = d.segments;
+    } else if(state.video.type === 'bilibili'){
+      const r = await fetch('/api/bilibili/subtitle?url='+encodeURIComponent(els.videoUrl.value)+'&lang='+encodeURIComponent(code));
+      const d = await r.json();
+      if(!r.ok || d.error) throw new Error(d.error);
+      segs = d.segments;
+    }
+    setSegments(mergeToSentences(segs), true);
+    toast('已載入 '+state.segments.length+' 句字幕');
+  } catch(e){ toast(e.message, true); }
+}
+
+function onSubtitleFile(){
+  const f = els.subtitleFile.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const segs = parseSrtVtt(String(reader.result));
+      if(!segs.length) throw new Error('未解析到字幕');
+      setSegments(mergeToSentences(segs), true);
+      els.btnNext2.disabled = false;
+      toast('已載入 '+state.segments.length+' 句字幕');
+    } catch(e){ toast('字幕檔解析失敗：'+e.message, true); }
+  };
+  reader.readAsText(f, 'utf-8');
+}
+function onPasteText(){
+  const t = els.pasteText.value.trim();
+  if(!t){ return; }
+  const segs = splitTextToSegments(t);
+  if(!segs.length){ toast('請輸入文本', true); return; }
+  setSegments(segs, false);
+  els.btnNext2.disabled = false;
+  toast('已載入 '+state.segments.length+' 句（無時間軸）');
+}
+
+/* ================= 翻譯 ================= */
+function renderTranscriptList(){
+  els.tlist2.innerHTML = state.segments.map(s=>`
+    <div class="titem" data-i="${s.index}">
+      <div class="meta"><span class="idx">#${s.index+1}</span><span class="tcode">${s.start!=null?fmtTime(s.start):'--:--'}</span></div>
+      <div class="orig">${escapeHtml(s.text)}</div>
+      <div class="trans">${s.translation?escapeHtml(s.translation):'<span class="pending">待翻譯…</span>'}</div>
+    </div>`).join('');
+}
+function highlightList(){
+  document.querySelectorAll('#tlist-2 .titem').forEach(el=>{
+    el.classList.toggle('current', +el.dataset.i === state.currentSeg);
+  });
+}
+
+async function onTranslate(){
+  const todo = state.segments.filter(s=>!s.translation);
+  if(!todo.length){ toast('所有句子都已翻譯'); return; }
+  els.btnTranslate.disabled = true;
+  els.translateStatus.style.display = 'block';
+  const native = getNative().ds, learn = getLearning().ds;
+  try {
+    const CHUNK = 15;
+    for(let c=0;c<todo.length;c+=CHUNK){
+      const batch = todo.slice(c, c+CHUNK);
+      els.translateStatus.textContent = `翻譯中 ${c+1}-${Math.min(c+CHUNK, todo.length)} / ${todo.length}…`;
+      const arr = batch.map(s=>s.text);
+      const content = await deepseek([
+        { role:'system', content:`你是專業字幕翻譯。把用戶給的「${learn}」句子逐句翻譯成「${native}」，保持口語自然、忠於原意。只輸出 JSON 陣列，元素為字串，數量與輸入句數完全一致，不要任何多餘文字或解釋。` },
+        { role:'user', content: JSON.stringify(arr) }
+      ], { temperature: 0.2 });
+      const translated = extractJson(content);
+      if(!Array.isArray(translated)) throw new Error('翻譯回覆格式錯誤');
+      batch.forEach((s,i)=>{ s.translation = typeof translated[i]==='string' ? translated[i] : (translated[i] && translated[i].text) || ''; });
+      renderTranscriptList();
+      await new Promise(r=>setTimeout(r,50));
+    }
+    els.translateStatus.textContent = '✅ 翻譯完成';
+    els.btnNext3.disabled = false;
+    setTimeout(()=>{ els.translateStatus.style.display='none'; }, 2000);
+    store.set('segments', state.segments.map(s=>({start:s.start,end:s.end,text:s.text,translation:s.translation})));
+  } catch(e){
+    els.translateStatus.textContent = '翻譯失敗：'+e.message;
+    toast('翻譯失敗：'+e.message, true);
+  } finally {
+    els.btnTranslate.disabled = false;
+  }
+}
+
+/* ================= 跟讀 ================= */
+function renderStudio(){
+  if(!state.segments.length) return;
+  if(state.currentSeg < 0) state.currentSeg = 0;
+  const seg = state.segments[state.currentSeg];
+  els.studioOrig.textContent = seg.text;
+  els.studioTrans.textContent = seg.translation || '';
+  els.studioIdx.textContent = '#'+(seg.index+1);
+  els.studioTime.textContent = seg.start!=null ? fmtTime(seg.start) : '無時間軸';
+  els.studioCount.textContent = (state.currentSeg+1)+' / '+state.segments.length;
+  drawReferenceWave();
+  // 重置回饋
+  els.feedback.classList.remove('show');
+  els.btnRecord.textContent = '🎙 開始錄音';
+  els.btnRecord.classList.remove('danger');
+}
+function goStudio(delta){
+  if(!state.segments.length) return;
+  const n = state.currentSeg + delta;
+  if(n<0 || n>=state.segments.length){ toast(delta>0?'已經是最後一句':'已經是第一句'); return; }
+  state.currentSeg = n;
+  stopAllPlayback();
+  renderStudio();
+}
+
+function drawReferenceWave(){
+  const cv = els.wave, ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  ctx.clearRect(0,0,W,H);
+  const seg = state.segments[state.currentSeg];
+  const n = Math.max(24, Math.min(90, Math.round((seg && seg.text.length)||30)));
+  const bars = [];
+  let seed = (seg&&seg.index)||0;
+  for(let i=0;i<n;i++){
+    seed = (seed*9301+49297)%233280;
+    bars.push(0.25 + (seed/233280)*0.75);
+  }
+  const bw = W/n;
+  for(let i=0;i<n;i++){
+    const h = bars[i]*H*0.72;
+    ctx.fillStyle = 'rgba(242,163,60,.18)';
+    ctx.fillRect(i*bw+1, (H-h)/2, bw-2, h);
+  }
+}
+function drawLiveWave(level){
+  const cv = els.wave, ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  // 不清空，保留參考波形，畫上「影子」
+  ctx.fillStyle = 'rgba(70,210,192,.9)';
+  const h = Math.max(3, level*H);
+  ctx.fillRect(0, (H-h)/2, W, h);
+}
+
+async function startRecording(){
+  if(state.isRecording) return;
+  if(!state.segments.length){ toast('請先載入字幕'); return; }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    toast('此瀏覽器不支援錄音，請用 Chrome / Edge / Safari', true); return;
+  }
+  // 先停在播放
+  doPause();
+  finalTranscript = ''; interimTranscript = '';
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio:true });
+  } catch(e){ toast('無法取得麥克風權限', true); return; }
+
+  // MediaRecorder
+  const mime = ['audio/webm','audio/mp4','audio/ogg'].find(m=>window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) || '';
+  mediaRecorder = new MediaRecorder(mediaStream, mime?{mimeType:mime}:undefined);
+  const chunks = [];
+  mediaRecorder.ondataavailable = e=>{ if(e.data.size) chunks.push(e.data); };
+  mediaRecorder.onstop = ()=>{
+    recordedBlob = new Blob(chunks, { type: mime||'audio/webm' });
+    if(recordedUrl) URL.revokeObjectURL(recordedUrl);
+    recordedUrl = URL.createObjectURL(recordedBlob);
+  };
+  mediaRecorder.start();
+
+  // 波形分析
+  try {
+    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(mediaStream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    src.connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const loop = ()=>{
+      if(!state.isRecording) return;
+      analyser.getByteTimeDomainData(data);
+      let sum=0; for(let i=0;i<data.length;i++){ const v=(data[i]-128)/128; sum+=v*v; }
+      const rms = Math.sqrt(sum/data.length);
+      drawLiveWave(Math.min(1, rms*3));
+      rafId = requestAnimationFrame(loop);
+    };
+    loop();
+  } catch(_){}
+
+  // 語音辨識
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(SR){
+    recognition = new SR();
+    recognition.lang = getLearning().code;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.onresult = (e)=>{
+      let f='', it='';
+      for(let i=0;i<e.results.length;i++){
+        const r = e.results[i];
+        if(r.isFinal) f += r[0].transcript;
+        else it += r[0].transcript;
+      }
+      finalTranscript = f; interimTranscript = it;
+    };
+    recognition.onend = ()=>{};
+    recognition.onerror = ()=>{};
+    try { recognition.start(); } catch(_){}
+  }
+
+  state.isRecording = true;
+  els.btnRecord.textContent = '⏹ 停止並評分';
+  els.btnRecord.classList.add('danger');
+  els.recordHint.innerHTML = '🔴 錄音中… 請跟著原句唸出來，完成後點「停止並評分」。';
+}
+
+async function stopRecording(){
+  if(!state.isRecording) return;
+  state.isRecording = false;
+  if(rafId){ cancelAnimationFrame(rafId); rafId=null; }
+  if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+  if(recognition){ try{ recognition.stop(); }catch(_){} }
+  if(mediaStream){ mediaStream.getTracks().forEach(t=>t.stop()); mediaStream=null; }
+  els.btnRecord.textContent = '🎙 重新錄音';
+  els.btnRecord.classList.remove('danger');
+  els.recordHint.innerHTML = '📝 正在分析你的跟讀…';
+  await new Promise(r=>setTimeout(r, 400));
+
+  let userText = (finalTranscript + ' ' + interimTranscript).trim();
+  const seg = state.segments[state.currentSeg];
+  seg.userText = userText;
+  await evaluate(seg);
+}
+
+/* ================= 評分 ================= */
+function tokenize(s){
+  return String(s||'').match(/[\u4e00-\u9fff]|[A-Za-z0-9'’]+|[^\s]/g) || [];
+}
+function normTok(t){ return /[A-Za-z]/.test(t) ? t.toLowerCase() : t; }
+function diffTokens(a, b){
+  const A = a.map(normTok), B = b.map(normTok);
+  const n=A.length, m=B.length;
+  const dp = Array.from({length:n+1},()=>new Array(m+1).fill(0));
+  for(let i=n-1;i>=0;i--) for(let j=m-1;j>=0;j--)
+    dp[i][j] = A[i]===B[j] ? dp[i+1][j+1]+1 : Math.max(dp[i+1][j], dp[i][j+1]);
+  const ma = new Array(n).fill(false), mb = new Array(m).fill(false);
+  let i=0,j=0;
+  while(i<n && j<m){
+    if(A[i]===B[j]){ ma[i]=mb[j]=true; i++; j++; }
+    else if(dp[i+1][j] >= dp[i][j+1]) i++;
+    else j++;
+  }
+  return { ma, mb, matched: dp[0][0], total: n };
+}
+
+function renderDiffLine(el, tokens, matched, mode){
+  el.innerHTML = tokens.map((t,k)=>{
+    let cls = mode==='orig' ? (matched[k] ? 'match' : 'miss') : (matched[k] ? 'match' : 'extra');
+    return `<span class="w ${cls}">${escapeHtml(t)}</span>`;
+  }).join('');
+}
+
+async function evaluate(seg){
+  els.feedback.classList.add('show');
+  const orig = seg.text, user = seg.userText || '';
+
+  // 客戶端逐字比對
+  const ot = tokenize(orig), ut = tokenize(user);
+  const d = diffTokens(ot, ut);
+  renderDiffLine(els.diffOrig, ot, d.ma, 'orig');
+  renderDiffLine(els.diffUser, ut, d.mb, 'user');
+
+  const matchRate = d.total ? Math.round(d.matched/d.total*100) : 0;
+  els.scoreVal.textContent = '…';
+  els.scoreSummary.textContent = '正在用 DeepSeek 分析…';
+
+  // 若無語音辨識且沒內容，提示手動
+  if(!user){
+    els.scoreVal.textContent = matchRate;
+    els.scoreSummary.textContent = '未偵測到語音文字。若瀏覽器不支援語音辨識，請改用 Chrome/Edge，或確認麥克風有收到聲音。';
+    setScoreArc(matchRate);
+    els.issuesCard.style.display='none'; els.tipsCard.style.display='none';
+    return;
+  }
+
+  try {
+    const learn = getLearning().ds, native = getNative().ds;
+    const content = await deepseek([
+      { role:'system', content:`你是經驗豐富的口語教練，專精影子跟讀（Shadowing）評估。根據「原文」與學生「跟讀轉寫」的差異，評估發音近似度、漏詞、錯詞、流利度與節奏。\
+只輸出嚴格的 JSON 物件，格式：{"score":0到100的整數,"summary":"一句簡短總評（用${native}）","issues":[{"word":"問題詞","note":"簡短說明（用${native}）"}],"tips":["改進建議1（用${native}）","改進建議2"]}。不要輸出 JSON 以外的內容。` },
+      { role:'user', content:`原文：${orig}\n跟讀轉寫：${user}` }
+    ], { temperature: 0.3 });
+    const res = extractJson(content);
+    const score = Math.max(0, Math.min(100, Math.round(Number(res.score)||matchRate)));
+    els.scoreVal.textContent = score;
+    els.scoreSummary.textContent = res.summary || '';
+    setScoreArc(score);
+
+    const issues = Array.isArray(res.issues) ? res.issues : [];
+    if(issues.length){
+      els.issuesCard.style.display='block';
+      els.issueList.innerHTML = issues.map(it=>`<div class="issue"><span class="w">${escapeHtml(it.word||'')}</span> — ${escapeHtml(it.note||'')}</div>`).join('');
+    } else els.issuesCard.style.display='none';
+
+    const tips = Array.isArray(res.tips) ? res.tips : [];
+    if(tips.length){
+      els.tipsCard.style.display='block';
+      els.tipList.innerHTML = tips.map(t=>`<div class="tip">💡 ${escapeHtml(t)}</div>`).join('');
+    } else els.tipsCard.style.display='none';
+
+    els.recordHint.innerHTML = '✅ 評分完成。可以反覆錄音練習，或點「→」換下一句。';
+  } catch(e){
+    els.scoreVal.textContent = matchRate;
+    els.scoreSummary.textContent = 'AI 評分失敗（'+e.message+'），以下為字面匹配結果。';
+    setScoreArc(matchRate);
+    els.issuesCard.style.display='none'; els.tipsCard.style.display='none';
+  }
+}
+
+function setScoreArc(score){
+  const C = 2*Math.PI*27;
+  const dash = (score/100)*C;
+  els.scoreArc.setAttribute('stroke-dasharray', dash+' '+(C));
+  els.scoreArc.setAttribute('stroke', score>=80?'#3ddc8e':(score>=55?'#f2a33c':'#ff6b6b'));
+  els.scoreVal.style.color = els.scoreArc.getAttribute('stroke');
+}
+
+/* ================= 事件綁定 ================= */
+function bindEvents(){
+  // 語言
+  els.langLearn.onchange = e=>{ state.learningIdx=+e.target.value; store.set('learningIdx', state.learningIdx); renderLanguages(); };
+  els.langNative.onchange = e=>{ state.nativeIdx=+e.target.value; store.set('nativeIdx', state.nativeIdx); renderLanguages(); };
+  $('hlang').onclick = ()=>setStep(1);
+
+  // 來源 tabs
+  els.srcTabs.querySelectorAll('.tab').forEach(t=>{
+    t.onclick = ()=>{
+      state.src = t.dataset.src;
+      els.srcTabs.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active', x===t));
+      els.urlField.style.display = state.src==='upload' ? 'none' : 'block';
+      els.fileField.style.display = state.src==='upload' ? 'block' : 'none';
+    };
+  });
+
+  els.btnLoadVideo.onclick = onLoadVideo;
+  els.btnAutoSub.onclick = onAutoSubtitle;
+  els.subtitleLang.onchange = onSubtitleLangChange;
+  els.subtitleFile.onchange = onSubtitleFile;
+  els.pasteText.addEventListener('input', debounce(onPasteText, 700));
+
+  // 步驟
+  els.steps.querySelectorAll('.step-chip').forEach(ch=>ch.onclick=()=>{
+    const s = +ch.dataset.step;
+    if(s>state.step && state.segments.length===0){ toast('請先載入字幕'); return; }
+    setStep(s);
+  });
+  els.btnNext2.onclick = ()=>{ setStep(2); renderTranscriptList(); };
+  els.btnBack1.onclick = ()=>setStep(1);
+  els.btnNext3.onclick = ()=>setStep(3);
+  els.btnBack2.onclick = ()=>setStep(2);
+
+  // 翻譯
+  els.btnTranslate.onclick = onTranslate;
+
+  // 播放器
+  els.btnPlay.onclick = ()=>{ if(!state.video.type) return; if(els.btnPlay.textContent.startsWith('▶')) doPlay(); else doPause(); };
+  els.btnPrev.onclick = ()=>{ const seg = state.segments[state.currentSeg-1]; if(seg){ state.currentSeg--; seekTo(seg.start!=null?seg.start:0); } else toast('沒有上一句'); };
+  els.btnNext.onclick = ()=>{ const seg = state.segments[state.currentSeg+1]; if(seg){ state.currentSeg++; seekTo(seg.start!=null?seg.start:0); } else toast('沒有下一句'); };
+  els.rateSel.onchange = e=>setRate(parseFloat(e.target.value));
+  els.btnLoop.onclick = ()=>{ state.loopMode = !state.loopMode; els.btnLoop.classList.toggle('on', state.loopMode); };
+  els.progress.onclick = e=>{
+    const r = els.progress.getBoundingClientRect();
+    const p = (e.clientX - r.left)/r.width;
+    const d = getDuration(); if(d) seekTo(p*d);
+  };
+
+  // 字幕顯示模式
+  els.subBar.querySelectorAll('.sub-toggle').forEach(b=>{
+    b.onclick = ()=>{ state.subMode = b.dataset.mode; els.subBar.querySelectorAll('.sub-toggle').forEach(x=>x.classList.toggle('on', x===b)); };
+  });
+
+  // 跟讀
+  els.btnListen.onclick = ()=>{
+    if(!state.segments.length) return;
+    const seg = state.segments[state.currentSeg];
+    if(seg && seg.start!=null){ seekTo(seg.start); if(state.loopMode){ /* loop 由 handleSentenceLoop 處理 */ } }
+    else if(seg){ toast('此句無時間軸，無法自動播放', true); }
+  };
+  els.btnRecord.onclick = ()=> state.isRecording ? stopRecording() : startRecording();
+  els.btnPrevSeg.onclick = ()=>goStudio(-1);
+  els.btnNextSeg.onclick = ()=>goStudio(1);
+
+  // 字幕列表點擊 → 跳到該句
+  els.tlist2.addEventListener('click', e=>{
+    const item = e.target.closest('.titem');
+    if(!item) return;
+    const i = +item.dataset.i;
+    state.currentSeg = i;
+    const seg = state.segments[i];
+    if(seg && seg.start!=null) seekTo(seg.start);
+    highlightList();
+  });
+
+  // 設定
+  $('settings-btn').onclick = ()=>{
+    els.apiKey.value = state.apiKey;
+    els.modelSel.value = state.model;
+    els.directMode.checked = state.directMode;
+    els.settingsModal.classList.add('show');
+  };
+  els.btnSettingsCancel.onclick = ()=>els.settingsModal.classList.remove('show');
+  els.btnSettingsSave.onclick = ()=>{
+    state.apiKey = els.apiKey.value.trim() || DEEPSEEK_DEFAULT_KEY;
+    state.model = els.modelSel.value;
+    state.directMode = els.directMode.checked;
+    store.set('apiKey', state.apiKey); store.set('model', state.model); store.set('directMode', state.directMode);
+    els.settingsModal.classList.remove('show');
+    toast('設定已儲存');
+  };
+  els.settingsModal.addEventListener('click', e=>{ if(e.target===els.settingsModal) els.settingsModal.classList.remove('show'); });
+}
+
+/* ================= 初始化 ================= */
+function init(){
+  renderLanguages();
+  els.apiKey.value = state.apiKey;
+  els.modelSel.value = state.model;
+  els.directMode.checked = state.directMode;
+  bindEvents();
+  // 恢復已儲存的字幕（若重新整理）
+  const saved = store.get('segments', null);
+  if(saved && saved.length){
+    state.segments = saved.map((s,i)=>({index:i,start:s.start??null,end:s.end??null,text:s.text,translation:s.translation||null,userText:null}));
+    els.btnNext2.disabled = false;
+    els.btnNext3.disabled = saved.some(s=>s.translation);
+  }
+}
+init();
+</script>
+</body>
+</html>
